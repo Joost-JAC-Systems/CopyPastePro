@@ -218,4 +218,4 @@ Specify a license before publishing (for example MIT, Apache-2.0, or GPL-3.0). I
 
 ## Author
 
-**CopyPaste Pro** — version 1.0.0
+**CopyPaste Pro** — Joost (JAC-Systems) — version 1.0.3
