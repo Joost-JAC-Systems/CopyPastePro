@@ -27,6 +27,8 @@ public partial class App : Application
   private ImageLibraryService? _imageLibrary;
   private ScreenshotCaptureService? _screenshot;
   private ClipboardQuickActionsService? _quickActions;
+  private WindowsClipboardOverrideService? _windowsClipboardOverride;
+  private ResourceThrottleService? _resourceThrottle;
   private System.Windows.Forms.ToolStripMenuItem? _trayToggleCaptureItem;
 
   private void Application_Startup(object sender, StartupEventArgs e)
@@ -40,6 +42,12 @@ public partial class App : Application
     _settings = AppSettings.Load();
     ThemeManager.Apply(_settings);
     AppIconSource.RegisterApplicationResources();
+
+    _resourceThrottle = new ResourceThrottleService(_settings);
+    _windowsClipboardOverride = new WindowsClipboardOverrideService(_settings);
+    _windowsClipboardOverride.BindThrottle(_resourceThrottle);
+    _windowsClipboardOverride.ApplyAtStartup();
+    _windowsClipboardOverride.StartEnforcement(Dispatcher, ShowWindowsClipboardHistoryBlockedAlert);
 
     _privacy = new PrivacyService(_settings);
     _repository = new ClipboardHistoryRepository();
@@ -55,9 +63,10 @@ public partial class App : Application
     _sensitiveRetention = new SensitiveRetentionService(_settings, _repository, _privacy);
 
     _backup = new AutoBackupService(_settings);
+    _backup.BindThrottle(_resourceThrottle);
     _backup.Start();
 
-    _mainWindow = new MainWindow(_repository, _capture, _paste, _settings, _classifier, _backup, _privacy, _sensitiveRetention, _imageLibrary, OpenQuickAccess, _quickActions);
+    _mainWindow = new MainWindow(_repository, _capture, _paste, _settings, _classifier, _backup, _privacy, _sensitiveRetention, _imageLibrary, OpenQuickAccess, _quickActions, _resourceThrottle);
     _mainWindow.Closing += MainWindow_Closing;
     _mainWindow.HotkeysChanged += (_, _) => RegisterHotkeys();
 
@@ -73,7 +82,7 @@ public partial class App : Application
     _monitor = new ClipboardMonitor();
     _monitor.ClipboardChanged += (_, _) => Dispatcher.BeginInvoke(() => _capture?.ProcessClipboard());
     _monitor.Start(_mainWindow);
-    _quickActions?.ConfigureWipeDependencies(_monitor, _backup!);
+    _quickActions?.ConfigureWipeDependencies(_monitor, _backup!, _windowsClipboardOverride);
 
     RegisterHotkeys();
     SetupTray();
@@ -188,7 +197,7 @@ public partial class App : Application
     menu.Items.Add("Settings", null, (_, _) => Dispatcher.BeginInvoke(() => { ShowMain(); _mainWindow?.OpenSettingsPanel(); }));
     menu.Items.Add("-");
     var clipboardMenu = new System.Windows.Forms.ToolStripMenuItem("Clipboard actions");
-    clipboardMenu.DropDownItems.Add("Clear Windows clipboard + Win+V", null, (_, _) =>
+    clipboardMenu.DropDownItems.Add("Clear clipboard", null, (_, _) =>
         Dispatcher.BeginInvoke(() => _quickActions?.ClearSystemClipboard(_mainWindow)));
     clipboardMenu.DropDownItems.Add("Copy latest to clipboard", null, (_, _) =>
         Dispatcher.BeginInvoke(() => _quickActions?.CopyLatestToClipboard(_mainWindow)));
@@ -272,12 +281,22 @@ public partial class App : Application
   /// <summary>Immediately stop capture, release resources, and exit (no confirmation).</summary>
   private void TerminateApp() => PerformShutdown();
 
+  private void ShowWindowsClipboardHistoryBlockedAlert() =>
+      AppDialog.Warning(
+          "Windows clipboard history (Win+V) was turned on.\n\n"
+          + "CopyPaste Pro requires this setting to stay off and has disabled it again. "
+          + "Use CopyPaste Pro for your clipboard history while the app is running.",
+          "Clipboard history blocked",
+          _mainWindow);
+
   private void PerformShutdown()
   {
+    _windowsClipboardOverride?.RestoreOnExit();
     _privacy?.OnExit(_repository!);
     _sessionPrivacy?.Dispose();
     _sensitiveRetention?.Dispose();
     _backup?.Dispose();
+    _resourceThrottle?.Dispose();
     _tray!.Visible = false;
     _tray.Dispose();
     _monitor?.Dispose();
@@ -288,10 +307,12 @@ public partial class App : Application
 
   protected override void OnExit(ExitEventArgs e)
   {
+    _windowsClipboardOverride?.RestoreOnExit();
     if (_privacy != null && _repository != null) _privacy.OnExit(_repository);
     _sessionPrivacy?.Dispose();
     _sensitiveRetention?.Dispose();
     _backup?.Dispose();
+    _resourceThrottle?.Dispose();
     _tray?.Dispose();
     _monitor?.Dispose();
     _hotkey?.Dispose();

@@ -5,18 +5,35 @@ namespace CopyPastePro.Services;
 public sealed class AutoBackupService : IDisposable
 {
   private readonly AppSettings _settings;
+  private ResourceThrottleService? _throttle;
   private System.Timers.Timer? _timer;
 
   public AutoBackupService(AppSettings settings) => _settings = settings;
 
+  public void BindThrottle(ResourceThrottleService throttle)
+  {
+    _throttle = throttle;
+    throttle.ThrottleLevelChanged += (_, _) => RestartTimer();
+  }
+
   public void Start()
   {
     if (!_settings.AutoBackupEnabled) return;
-    var interval = Math.Max(5, _settings.AutoBackupIntervalMinutes);
-    _timer = new System.Timers.Timer(interval * 60_000) { AutoReset = true };
+    RestartTimer();
+    if (_settings.AutoBackupOnStartup) RunBackup();
+  }
+
+  private void RestartTimer()
+  {
+    _timer?.Stop();
+    _timer?.Dispose();
+    if (!_settings.AutoBackupEnabled) return;
+    var minutes = Math.Max(5, _settings.AutoBackupIntervalMinutes);
+    var baseMs = minutes * 60_000.0;
+    var mult = _throttle?.IntervalMultiplier ?? 1.0;
+    _timer = new System.Timers.Timer(baseMs * mult) { AutoReset = true };
     _timer.Elapsed += (_, _) => RunBackup();
     _timer.Start();
-    if (_settings.AutoBackupOnStartup) RunBackup();
   }
 
   /// <summary>Creates a new timestamped backup file (never overwrites an existing backup).</summary>

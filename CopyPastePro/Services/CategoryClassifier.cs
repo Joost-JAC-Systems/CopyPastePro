@@ -1,5 +1,4 @@
 using System.IO;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using CopyPastePro.Models;
 
@@ -8,21 +7,6 @@ namespace CopyPastePro.Services;
 public sealed class CategoryClassifier
 {
   private readonly AppSettings _settings;
-
-  private static readonly Dictionary<string, string[]> BuiltIn = new(StringComparer.OrdinalIgnoreCase)
-  {
-    ["Image"] = [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".ico", ".svg", ".tif", ".tiff", ".heic"],
-    ["Code"] = [".cs", ".js", ".ts", ".tsx", ".jsx", ".py", ".java", ".cpp", ".c", ".h", ".go", ".rs", ".php", ".rb", ".swift", ".kt", ".sql", ".sh", ".ps1", ".bat", ".cmd", ".json", ".xml", ".yaml", ".yml", ".toml", ".vue", ".scss", ".css", ".html", ".htm"],
-    ["Document"] = [".doc", ".docx", ".pdf", ".txt", ".md", ".rtf", ".odt", ".epub", ".tex"],
-    ["Spreadsheet"] = [".xls", ".xlsx", ".csv", ".ods"],
-    ["Presentation"] = [".ppt", ".pptx", ".odp"],
-    ["Archive"] = [".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".xz", ".iso"],
-    ["Audio"] = [".mp3", ".wav", ".flac", ".aac", ".ogg", ".m4a", ".wma"],
-    ["Video"] = [".mp4", ".mkv", ".avi", ".mov", ".wmv", ".webm", ".m4v"],
-    ["Executable"] = [".exe", ".msi", ".msix", ".dll", ".appx"],
-    ["Design"] = [".psd", ".ai", ".fig", ".sketch", ".blend", ".xd"],
-    ["Data"] = [".db", ".sqlite", ".mdb", ".parquet", ".avro"]
-  };
 
   public CategoryClassifier(AppSettings settings) => _settings = settings;
 
@@ -48,19 +32,18 @@ public sealed class CategoryClassifier
     {
       var fromCustom = ClassifyByCustomRules(ext);
       if (fromCustom != null) return fromCustom;
-      foreach (var (cat, exts) in BuiltIn)
-      {
-        if (exts.Contains(ext, StringComparer.OrdinalIgnoreCase)) return cat;
-      }
+
+      if (FileExtensionCatalog.IsImageExtension(ext))
+        return "Image";
+
+      var builtIn = FileExtensionCatalog.GetBuiltInCategory(ext);
+      if (builtIn != null) return builtIn;
+
       return "Files";
     }
 
     if (entry.ContentType == ClipboardContentType.Files)
-    {
-      var paths = entry.FilePaths;
-      if (paths.Count > 1) return "Files";
-      return "Files";
-    }
+      return entry.FilePaths.Count > 1 ? "Files" : "Files";
 
     var text = entry.TextContent ?? entry.Preview;
     if (IsUrl(text)) return "Link";
@@ -104,17 +87,17 @@ public sealed class CategoryClassifier
   private static bool LooksLikeCode(string s)
   {
     if (s.Length < 20) return false;
-    var markers = new[] { "{", "}", ";", "=>", "function ", "class ", "def ", "import ", "public ", "#include", "<?", "</" };
+    var markers = new[]
+    {
+      "{", "}", ";", "=>", "function ", "class ", "def ", "import ", "public ", "#include", "<?", "</",
+      "namespace ", "using ", "const ", "let ", "var ", "fn ", "func ", "package ", "interface "
+    };
     return markers.Count(m => s.Contains(m, StringComparison.Ordinal)) >= 2;
   }
 
   public IReadOnlyList<string> AllCategories()
   {
-    var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-    {
-      "All", "General", "Text", "LongText", "Image", "Files", "Code", "Document", "Web",
-      "Spreadsheet", "Presentation", "Archive", "Audio", "Video", "Executable", "Design", "Data", "Link"
-    };
+    var set = new HashSet<string>(FileExtensionCatalog.AllBuiltInCategories(), StringComparer.OrdinalIgnoreCase);
     foreach (var r in _settings.CustomExtensionCategories)
       if (!string.IsNullOrWhiteSpace(r.Category)) set.Add(r.Category);
     return set.OrderBy(c => c == "All" ? "" : c).ToList();

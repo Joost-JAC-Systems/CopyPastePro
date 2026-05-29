@@ -98,7 +98,7 @@ public partial class QuickAccessWindow : Window
       Search = QuickSearch.Text.Trim(),
       Sort = _settings.DefaultSort,
       Take = _settings.QuickAccessItemCount
-    }).Select(e => new QuickItem(e)).ToList();
+    }).Select(e => new QuickItem(e, _settings)).ToList();
     QuickList.ItemsSource = items;
     QuickSubtitle.Text = $"{items.Count} items · {_settings.QuickAccessModifiers}+{_settings.QuickAccessKey}";
   }
@@ -372,10 +372,16 @@ public partial class QuickAccessWindow : Window
     public System.Windows.Media.Brush FavoriteBrush { get; private set; } = System.Windows.Media.Brushes.Transparent;
     public System.Windows.Media.Brush PinBrush { get; private set; } = System.Windows.Media.Brushes.Transparent;
 
-    public QuickItem(ClipboardEntry e)
+    public string FormatBadge { get; }
+
+    public QuickItem(ClipboardEntry e, AppSettings? settings = null)
     {
       Entry = e;
-      Title = e.Preview;
+      var badge = settings != null && settings.FormattingEnabled
+          ? PreviewFormatDetector.GetFormatIcon(PreviewFormatDetector.Detect(e, settings))
+          : "";
+      FormatBadge = badge;
+      Title = string.IsNullOrEmpty(badge) ? e.Preview : $"{badge} {e.Preview}";
       Subtitle = $"{e.CategoryIcon} {e.Category} · {e.TypeLabel} · {e.TimeAgo}";
       UpdateBrushes();
     }

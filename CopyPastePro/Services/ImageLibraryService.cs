@@ -82,12 +82,7 @@ public sealed class ImageLibraryService
     var dir = Path.GetDirectoryName(destinationPath);
     if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
 
-    var ext = Path.GetExtension(destinationPath).ToLowerInvariant();
-    if (ext is ".jpg" or ".jpeg")
-      bytes = ConvertToJpeg(bytes) ?? bytes;
-
-    File.WriteAllBytes(destinationPath, bytes);
-    return true;
+    return ImageExportService.TryExport(bytes, destinationPath);
   }
 
   public byte[]? ReadImageBytes(ClipboardEntry entry)
@@ -267,27 +262,5 @@ public sealed class ImageLibraryService
   }
 
   private static string NormalizeExtension(string format) =>
-      format.Trim().TrimStart('.').ToLowerInvariant() switch
-      {
-        "jpg" or "jpeg" => ".jpg",
-        _ => ".png"
-      };
-
-  private static byte[]? ConvertToJpeg(byte[] pngBytes)
-  {
-    try
-    {
-      using var ms = new MemoryStream(pngBytes);
-      var decoder = BitmapDecoder.Create(ms, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
-      var encoder = new JpegBitmapEncoder { QualityLevel = 90 };
-      encoder.Frames.Add(decoder.Frames[0]);
-      using var outMs = new MemoryStream();
-      encoder.Save(outMs);
-      return outMs.ToArray();
-    }
-    catch
-    {
-      return null;
-    }
-  }
+      ImageExportService.NormalizeExtension(format);
 }

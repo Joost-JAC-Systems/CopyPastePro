@@ -44,10 +44,21 @@ public sealed class ClipboardEntry
     "Video" => "🎬",
     "Executable" => "⚙",
     "Design" => "🎨",
+    "Data" => "🗄",
+    "Font" => "🔤",
+    "Certificate" => "🔐",
+    "Config" => "⚙",
+    "Email" => "✉",
+    "Subtitle" => "💬",
+    "Shortcut" => "🔗",
+    "Ebook" => "📖",
+    "3D" => "🧊",
+    "CAD" => "📐",
     "Link" => "🔗",
     "Web" => "🌐",
     "Files" => "📁",
     "LongText" => "📝",
+    "Text" => "📋",
     _ => "📋"
   };
 

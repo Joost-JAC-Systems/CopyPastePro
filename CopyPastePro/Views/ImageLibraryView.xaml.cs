@@ -343,6 +343,7 @@ public partial class ImageLibraryView : System.Windows.Controls.UserControl
         PasteToApp = item.HasHistoryEntry ? () => PasteToApp_Click(this, new RoutedEventArgs()) : null,
         Copy = () => Copy_Click(this, new RoutedEventArgs()),
         SaveAs = item.HasHistoryEntry ? () => SaveAs_Click(this, new RoutedEventArgs()) : null,
+        ExportImageAs = item.HasHistoryEntry ? () => ExportImageAsMenu_Click(this, new RoutedEventArgs()) : null,
         OpenFile = () => OpenFile_Click(this, new RoutedEventArgs()),
         Fullscreen = () => DetailPreview.OpenFullscreen(),
         ToggleFavorite = item.HasHistoryEntry ? () => Favorite_Click(this, new RoutedEventArgs()) : null,
@@ -635,13 +636,22 @@ public partial class ImageLibraryView : System.Windows.Controls.UserControl
     var ext = _settings.ImageLibrarySaveFormat.TrimStart('.').ToLowerInvariant();
     var dlg = new SaveFileDialog
     {
-      Filter = ext == "jpg" ? "JPEG|*.jpg|PNG|*.png" : "PNG|*.png|JPEG|*.jpg",
+      Filter = ImageExportService.FormatFilter,
       FileName = $"clipboard_{_selected.Entry!.CapturedAt:yyyy-MM-dd_HH-mm-ss}.{ext}",
       DefaultExt = ext
     };
     if (dlg.ShowDialog() != true) return;
     if (_library.SaveAs(_selected.Entry, dlg.FileName) != null)
       AppDialog.Info($"Saved:\n{dlg.FileName}", "Image library", DialogOwner);
+  }
+
+  private void ExportImageAsMenu_Click(object sender, RoutedEventArgs e)
+  {
+    if (_selected?.Entry == null) return;
+    var bytes = _library.ReadImageBytes(_selected.Entry);
+    if (bytes == null) return;
+    if (ImageExportService.PromptAndExport(DialogOwner, bytes, $"clipboard_{_selected.Entry.CapturedAt:yyyy-MM-dd_HH-mm-ss}"))
+      AppDialog.Info("Image exported.", "Image library", DialogOwner);
   }
 
   private void Copy_Click(object sender, RoutedEventArgs e)

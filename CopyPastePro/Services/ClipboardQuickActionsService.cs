@@ -15,6 +15,7 @@ public sealed class ClipboardQuickActionsService
   private readonly Action? _refreshUi;
   private ClipboardMonitor? _monitor;
   private AutoBackupService? _backup;
+  private WindowsClipboardOverrideService? _windowsOverride;
 
   public ClipboardQuickActionsService(
       AppSettings settings,
@@ -32,10 +33,14 @@ public sealed class ClipboardQuickActionsService
     _refreshUi = refreshUi;
   }
 
-  public void ConfigureWipeDependencies(ClipboardMonitor monitor, AutoBackupService backup)
+  public void ConfigureWipeDependencies(
+      ClipboardMonitor monitor,
+      AutoBackupService backup,
+      WindowsClipboardOverrideService? windowsOverride = null)
   {
     _monitor = monitor;
     _backup = backup;
+    _windowsOverride = windowsOverride;
   }
 
   public void ClearSystemClipboard(Window? owner = null) => RunOnUi(owner, () =>
@@ -46,21 +51,21 @@ public sealed class ClipboardQuickActionsService
     using (_capture.SuppressCapture())
     {
       cleared = PerformWindowsClipboardWipe();
-      _capture.OnHistoryCleared(cleared.Success);
+      _capture.OnHistoryCleared(cleared.ActiveOnlySuccess);
     }
     _monitor?.SetPaused(false);
 
-    if (!cleared.Success)
+    if (!cleared.ActiveOnlySuccess)
     {
       AppDialog.Warning(
           BuildClipboardClearFailureMessage(cleared),
-          "Clear Windows clipboard", owner);
+          "Clear clipboard", owner);
       return;
     }
 
     AppDialog.Info(
-        "Windows clipboard cleared (active clipboard and Win+V history).\n\nCopyPaste Pro history was not changed.",
-        "Windows clipboard cleared", owner);
+        "Windows clipboard is now empty.\n\nCopyPaste Pro history was not changed.",
+        "Clipboard cleared", owner);
   });
 
   public void CopyLatestToClipboard(Window? owner = null) => RunOnUi(owner, () =>
@@ -266,7 +271,7 @@ public sealed class ClipboardQuickActionsService
       if (clearSystemClipboard)
         outcome.ClipboardResult = PerformWindowsClipboardWipe();
 
-      var clipboardWasCleared = clearSystemClipboard && (outcome.ClipboardResult?.Success ?? false);
+      var clipboardWasCleared = clearSystemClipboard && (outcome.ClipboardResult?.ActiveOnlySuccess ?? false);
       if (clearHistory)
         _capture.OnHistoryCleared(clipboardWasCleared);
     }
@@ -281,7 +286,9 @@ public sealed class ClipboardQuickActionsService
   }
 
   private SystemClipboardHelper.ClearResult PerformWindowsClipboardWipe() =>
-      SystemClipboardHelper.TryClearWindowsFully();
+      _windowsOverride?.IsManagingWindowsHistory == true
+          ? SystemClipboardHelper.TryClearActiveClipboard()
+          : SystemClipboardHelper.TryClearWindowsFully();
 
   private void ReportWipeResult(
       WipeOutcome wiped,
@@ -291,7 +298,7 @@ public sealed class ClipboardQuickActionsService
       bool requireHistory = true)
   {
     var historyOk = !requireHistory || wiped.RemainingHistoryCount == 0;
-    var clipboardOk = !requireClipboard || (wiped.ClipboardResult?.Success ?? false);
+    var clipboardOk = !requireClipboard || (wiped.ClipboardResult?.ActiveOnlySuccess ?? false);
 
     if (historyOk && clipboardOk)
     {
@@ -299,7 +306,7 @@ public sealed class ClipboardQuickActionsService
           ? ""
           : $"\n\nNew backup saved:\n{wiped.PostWipeBackupPath}";
       AppDialog.Info(
-          "CopyPaste Pro history and Windows clipboard (including Win+V history) were cleared." + backupNote,
+          "CopyPaste Pro history and the Windows clipboard were cleared." + backupNote,
           title, owner);
       return;
     }
@@ -312,16 +319,16 @@ public sealed class ClipboardQuickActionsService
   AppDialog.Warning(msg.Trim(), title, owner);
   }
 
-  private static string BuildClipboardClearFailureMessage(SystemClipboardHelper.ClearResult cleared)
+  private string BuildClipboardClearFailureMessage(SystemClipboardHelper.ClearResult cleared)
   {
     var parts = new List<string>
     {
       "Could not fully clear the Windows clipboard."
     };
     if (!cleared.ActiveClipboardCleared)
-      parts.Add("• Active clipboard (Ctrl+V) is still in use or locked.");
-    if (!cleared.HistoryCleared)
-      parts.Add("• Win+V history may still have items (turn on Clipboard history in Windows Settings → System → Clipboard).");
+      parts.Add("• The clipboard is still in use or locked by another app.");
+    if (!cleared.HistoryCleared && _windowsOverride?.IsManagingWindowsHistory != true)
+      parts.Add("• Win+V history may still have items (Windows clipboard history is enabled).");
     if (!string.IsNullOrWhiteSpace(cleared.Error))
       parts.Add(cleared.Error);
     return string.Join("\n", parts);

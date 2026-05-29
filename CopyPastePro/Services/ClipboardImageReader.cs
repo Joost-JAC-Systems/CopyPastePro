@@ -21,11 +21,6 @@ public static class ClipboardImageReader
     "JFIF", "image/jpeg", "image/jpg", "JPEG"
   ];
 
-  private static readonly HashSet<string> ImageFileExtensions = new(StringComparer.OrdinalIgnoreCase)
-  {
-    ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tif", ".tiff"
-  };
-
   public sealed record CapturedImage(byte[] PngBytes, int Width, int Height);
 
   public static CapturedImage? TryRead(int maxAttempts = 3)
@@ -262,7 +257,7 @@ public static class ClipboardImageReader
   private static bool IsImageFile(string path)
   {
     var ext = Path.GetExtension(path);
-    return !string.IsNullOrEmpty(ext) && ImageFileExtensions.Contains(ext);
+    return FileExtensionCatalog.IsImageExtension(ext);
   }
 
   public static CapturedImage? TryReadImageFile(string path)

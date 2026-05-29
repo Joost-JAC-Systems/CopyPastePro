@@ -26,6 +26,27 @@ public static class SystemClipboardHelper
     public int HistoryItemsRemoved { get; set; }
     public string? Error { get; set; }
     public bool Success => ActiveClipboardCleared && HistoryCleared;
+
+    public bool ActiveOnlySuccess => ActiveClipboardCleared;
+  }
+
+  /// <summary>Clears only the active Windows clipboard (Ctrl+V) — empty data object / EmptyClipboard.</summary>
+  public static ClearResult TryClearActiveClipboard(int attempts = 12)
+  {
+    var result = new ClearResult { HistoryCleared = true };
+    for (var i = 0; i < attempts; i++)
+    {
+      if (TryClearActiveClipboardOnce())
+      {
+        result.ActiveClipboardCleared = true;
+        break;
+      }
+      Thread.Sleep(30 + i * 20);
+    }
+
+    if (!result.ActiveClipboardCleared)
+      result.Error = "Could not empty the Windows clipboard.";
+    return result;
   }
 
   /// <summary>Clears active clipboard (Ctrl+V) and Windows clipboard history (Win+V), including pinned items.</summary>

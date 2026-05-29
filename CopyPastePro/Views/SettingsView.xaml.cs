@@ -47,19 +47,31 @@ public partial class SettingsView : System.Windows.Controls.UserControl
 
   private void BuildCategories()
   {
-    string[] cats = ["General", "Organization", "Copy", "Paste", "Hotkeys", "Theme", "History", "Image library", "Notifications", "Automation", "Privacy", "Advanced"];
+    string[] cats =
+    [
+      "General", "Power & performance", "Organization", "Copy", "Paste", "Hotkeys", "Theme", "History",
+      "Formatting", "Format — Code", "Format — Markdown", "Format — HTML", "Format — Documents",
+      "Format — Images", "Image library", "Notifications", "Automation", "Privacy", "Advanced"
+    ];
     CategoryList.ItemsSource = cats;
   }
 
   private void BuildAllPanels()
   {
     AddPanel("General", BuildGeneral());
+    AddPanel("Power & performance", BuildPower());
     AddPanel("Organization", BuildOrganization());
     AddPanel("Copy", BuildCopy());
     AddPanel("Paste", BuildPaste());
     AddPanel("Hotkeys", BuildHotkeys());
     AddPanel("Theme", BuildTheme());
     AddPanel("History", BuildHistory());
+    AddPanel("Formatting", BuildFormattingOverview());
+    AddPanel("Format — Code", BuildFormatCode());
+    AddPanel("Format — Markdown", BuildFormatMarkdown());
+    AddPanel("Format — HTML", BuildFormatHtml());
+    AddPanel("Format — Documents", BuildFormatDocuments());
+    AddPanel("Format — Images", BuildFormatImages());
     AddPanel("Image library", BuildImageLibrary());
     AddPanel("Notifications", BuildNotifications());
     AddPanel("Automation", BuildAutomation());
@@ -90,10 +102,92 @@ public partial class SettingsView : System.Windows.Controls.UserControl
     p.Children.Add(Check("Start minimized to tray", () => _settings.StartMinimized, v => _settings.StartMinimized = v));
     p.Children.Add(Check("Run at Windows startup", () => _settings.RunAtWindowsStartup, v => _settings.RunAtWindowsStartup = v));
     p.Children.Add(Check("Show tray icon", () => _settings.ShowTrayIcon, v => _settings.ShowTrayIcon = v));
+    p.Children.Add(Note("While CopyPaste Pro is running, Windows clipboard history (Win+V) must stay off. If you turn it on in Settings, the app will disable it again and show a warning."));
     p.Children.Add(Check("Confirm before exit", () => _settings.ConfirmOnExit, v => _settings.ConfirmOnExit = v));
     p.Children.Add(Check("Confirm before clearing history", () => _settings.ConfirmClearHistory, v => _settings.ConfirmClearHistory = v));
     p.Children.Add(TextField("Interface language (code)", () => _settings.Language, v => _settings.Language = v));
     p.Children.Add(Note("The full manager window keeps its size. Use the quick popup (hotkey) for a small sticky-note picker."));
+    return p;
+  }
+
+  private StackPanel BuildPower()
+  {
+    var p = new StackPanel();
+    p.Children.Add(Heading("Power & performance"));
+    p.Children.Add(Note("When you are idle (no keyboard/mouse input), the app slows background timers smoothly so it uses less CPU and battery. Rich formatting in the manager pauses if enabled below."));
+    p.Children.Add(Check("Enable adaptive power saving", () => _settings.PowerSavingEnabled, v => _settings.PowerSavingEnabled = v));
+    p.Children.Add(NumberField("Minutes idle before throttling", () => _settings.IdleMinutesBeforeThrottle, v => _settings.IdleMinutesBeforeThrottle = v));
+    p.Children.Add(Check("Throttle heavily while PC is asleep or locked", () => _settings.ThrottleWhenDisplayOff, v => _settings.ThrottleWhenDisplayOff = v));
+    p.Children.Add(Check("Treat active media playback as “in use” (less throttling)", () => _settings.ThrottleWhenMediaPlaying, v => _settings.ThrottleWhenMediaPlaying = v));
+    p.Children.Add(Check("Pause rich formatting previews while idle", () => _settings.PauseFormattingWhenIdle, v => _settings.PauseFormattingWhenIdle = v));
+    return p;
+  }
+
+  private StackPanel BuildFormattingOverview()
+  {
+    var p = new StackPanel();
+    p.Children.Add(Heading("Clipboard formatting"));
+    p.Children.Add(Note("Rich previews run only while the main manager window is open on screen — not in the tray or quick clipboard (quick access shows a format icon only)."));
+    p.Children.Add(Check("Enable formatted previews", () => _settings.FormattingEnabled, v => _settings.FormattingEnabled = v));
+    p.Children.Add(NumberField("Max characters to format", () => _settings.FormattingMaxPreviewChars, v => _settings.FormattingMaxPreviewChars = v));
+    p.Children.Add(NumberField("Formatting font size", () => (int)_settings.FormattingFontSize, v => _settings.FormattingFontSize = v));
+    p.Children.Add(TextField("Monospace font", () => _settings.FormattingMonoFont, v => _settings.FormattingMonoFont = v));
+    p.Children.Add(TextField("Sans font", () => _settings.FormattingSansFont, v => _settings.FormattingSansFont = v));
+    return p;
+  }
+
+  private StackPanel BuildFormatCode()
+  {
+    var p = new StackPanel();
+    p.Children.Add(Heading("Format — Code & commands"));
+    p.Children.Add(Check("Syntax-highlight code", () => _settings.FormatCode, v => _settings.FormatCode = v));
+    p.Children.Add(Check("Detect shell commands (mono font)", () => _settings.FormatCommands, v => _settings.FormatCommands = v));
+    p.Children.Add(Check("Show run button for commands", () => _settings.ShowRunCommandButton, v => _settings.ShowRunCommandButton = v));
+    p.Children.Add(Check("Confirm before running commands", () => _settings.ConfirmBeforeRunCommand, v => _settings.ConfirmBeforeRunCommand = v));
+    p.Children.Add(Check("Format JSON", () => _settings.FormatJson, v => _settings.FormatJson = v));
+    p.Children.Add(Check("Format XML", () => _settings.FormatXml, v => _settings.FormatXml = v));
+    p.Children.Add(Check("Format SQL", () => _settings.FormatSql, v => _settings.FormatSql = v));
+    p.Children.Add(Check("Format YAML", () => _settings.FormatYaml, v => _settings.FormatYaml = v));
+    p.Children.Add(Check("Format INI / config", () => _settings.FormatIniAndConfig, v => _settings.FormatIniAndConfig = v));
+    p.Children.Add(Check("Format log files", () => _settings.FormatLogFiles, v => _settings.FormatLogFiles = v));
+    return p;
+  }
+
+  private StackPanel BuildFormatMarkdown()
+  {
+    var p = new StackPanel();
+    p.Children.Add(Heading("Format — Markdown"));
+    p.Children.Add(Note("Uses Markdig with Obsidian-style extensions: tables, task lists, strikethrough, footnotes, and more."));
+    p.Children.Add(Check("Render Markdown previews", () => _settings.FormatMarkdown, v => _settings.FormatMarkdown = v));
+    return p;
+  }
+
+  private StackPanel BuildFormatHtml()
+  {
+    var p = new StackPanel();
+    p.Children.Add(Heading("Format — HTML & web"));
+    p.Children.Add(Check("Format HTML clips (code + visual toggle)", () => _settings.FormatHtml, v => _settings.FormatHtml = v));
+    return p;
+  }
+
+  private StackPanel BuildFormatDocuments()
+  {
+    var p = new StackPanel();
+    p.Children.Add(Heading("Format — Documents"));
+    p.Children.Add(Check("Word-style RTF preview", () => _settings.FormatRtfDocuments, v => _settings.FormatRtfDocuments = v));
+    p.Children.Add(Check("Excel-style grid for spreadsheet cells", () => _settings.FormatExcelGrid, v => _settings.FormatExcelGrid = v));
+    p.Children.Add(Check("PDF first-page preview (copied files)", () => _settings.FormatPdfPreview, v => _settings.FormatPdfPreview = v));
+    p.Children.Add(Check("CSV table preview", () => _settings.FormatCsv, v => _settings.FormatCsv = v));
+    return p;
+  }
+
+  private StackPanel BuildFormatImages()
+  {
+    var p = new StackPanel();
+    p.Children.Add(Heading("Format — Images"));
+    p.Children.Add(Note("Export converts stored PNG payloads to PNG, JPEG, BMP, GIF, or TIFF."));
+    p.Children.Add(ComboField("Default export format", ["png", "jpg", "bmp", "gif", "tiff"],
+        () => _settings.DefaultImageExportFormat, v => _settings.DefaultImageExportFormat = v));
     return p;
   }
 

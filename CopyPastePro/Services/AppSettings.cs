@@ -10,6 +10,9 @@ namespace CopyPastePro.Services;
 public sealed class AppSettings
 {
   // ── General ──
+  /// <summary>True when this app disabled Windows Win+V history and should restore on exit.</summary>
+  public bool WindowsClipboardHistoryDisabledByApp { get; set; }
+  public bool WindowsClipboardHistoryWasEnabled { get; set; }
   public bool StartMinimized { get; set; } = false;
   public bool RunAtWindowsStartup { get; set; } = false;
   public bool ShowTrayIcon { get; set; } = true;
@@ -216,6 +219,37 @@ public sealed class AppSettings
 
   /// <summary>UI scale for the main manager window (0.75–1.5). Quick access and tray are not scaled.</summary>
   public double MainWindowUiScale { get; set; } = 1.0;
+
+  // ── Power & performance ──
+  public bool PowerSavingEnabled { get; set; } = true;
+  public int IdleMinutesBeforeThrottle { get; set; } = 3;
+  public bool ThrottleWhenDisplayOff { get; set; } = true;
+  public bool ThrottleWhenMediaPlaying { get; set; } = false;
+  public bool PauseFormattingWhenIdle { get; set; } = true;
+
+  // ── Clipboard formatting (main window preview only) ──
+  public bool FormattingEnabled { get; set; } = true;
+  public bool FormatCommands { get; set; } = true;
+  public bool FormatCode { get; set; } = true;
+  public bool FormatMarkdown { get; set; } = true;
+  public bool FormatHtml { get; set; } = true;
+  public bool FormatRtfDocuments { get; set; } = true;
+  public bool FormatExcelGrid { get; set; } = true;
+  public bool FormatPdfPreview { get; set; } = true;
+  public bool FormatJson { get; set; } = true;
+  public bool FormatXml { get; set; } = true;
+  public bool FormatCsv { get; set; } = true;
+  public bool FormatSql { get; set; } = true;
+  public bool FormatIniAndConfig { get; set; } = true;
+  public bool FormatLogFiles { get; set; } = true;
+  public bool FormatYaml { get; set; } = true;
+  public bool ShowRunCommandButton { get; set; } = true;
+  public bool ConfirmBeforeRunCommand { get; set; } = true;
+  public double FormattingFontSize { get; set; } = 13;
+  public string FormattingMonoFont { get; set; } = "Cascadia Mono";
+  public string FormattingSansFont { get; set; } = "Segoe UI";
+  public int FormattingMaxPreviewChars { get; set; } = 120_000;
+  public string DefaultImageExportFormat { get; set; } = "png";
 
   // ── Advanced ──
   public bool DebugLogging { get; set; } = false;

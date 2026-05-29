@@ -26,6 +26,7 @@ public partial class MainWindow : Window
   private readonly Action? _openQuickAccess;
   private readonly SettingsView _settingsView;
   private readonly ImageLibraryView _imageLibraryView;
+  private readonly ResourceThrottleService? _throttle;
   private Action? _captureScreenshot;
   private List<ClipboardEntry> _entries = new();
   private bool _isReady;
@@ -42,7 +43,8 @@ public partial class MainWindow : Window
       SensitiveRetentionService? sensitiveRetention = null,
       ImageLibraryService? imageLibrary = null,
       Action? openQuickAccess = null,
-      ClipboardQuickActionsService? quickActions = null)
+      ClipboardQuickActionsService? quickActions = null,
+      ResourceThrottleService? throttle = null)
   {
     _repository = repository;
     _capture = capture;
@@ -53,7 +55,10 @@ public partial class MainWindow : Window
     _privacy = privacy;
     _quickActions = quickActions ?? new ClipboardQuickActionsService(_settings, _repository, _capture, _paste, _privacy, RefreshList);
     _openQuickAccess = openQuickAccess;
+    _throttle = throttle;
     InitializeComponent();
+    IsVisibleChanged += (_, _) => UpdatePreview();
+    StateChanged += (_, _) => UpdatePreview();
 
     var lib = imageLibrary ?? new ImageLibraryService(_settings, _repository);
     _imageLibraryView = new ImageLibraryView(_settings, _repository, lib, _paste, _capture, PasteToActiveApp, () => _captureScreenshot?.Invoke());
@@ -86,7 +91,7 @@ public partial class MainWindow : Window
     var entry = SelectedEntry;
     if (entry == null)
     {
-      HistoryList.ContextMenu = BuildQuickActionsOnlyMenu(includeOpenManager: true);
+      HistoryList.ContextMenu = BuildHistoryListEmptyContextMenu();
       return;
     }
     HistoryList.ContextMenu = BuildHistoryEntryContextMenu(entry);
@@ -125,36 +130,15 @@ public partial class MainWindow : Window
 
   private ContextMenu BuildHistoryEntryContextMenu(ClipboardEntry entry) =>
       ClipboardContextMenuBuilder.Create(menu =>
-      {
-        ClipboardContextMenuBuilder.AddClipboardEntryMenu(menu, CreateEntryMenuOptions(entry));
-        ClipboardContextMenuBuilder.AddQuickClipboardActions(menu, CreateQuickActionsMenuOptions());
-      });
+          ClipboardContextMenuBuilder.AddClipboardEntryMenu(menu, CreateEntryMenuOptions(entry)));
 
   private ContextMenu BuildHistoryImagePreviewMenu(ClipboardEntry entry) =>
       ClipboardContextMenuBuilder.Create(menu =>
-      {
-        ClipboardContextMenuBuilder.AddClipboardEntryMenu(menu, CreateEntryMenuOptions(entry, includeFullscreen: true));
-        ClipboardContextMenuBuilder.AddQuickClipboardActions(menu, CreateQuickActionsMenuOptions());
-      });
+          ClipboardContextMenuBuilder.AddClipboardEntryMenu(menu, CreateEntryMenuOptions(entry, includeFullscreen: true)));
 
-  private ContextMenu BuildQuickActionsOnlyMenu(bool includeOpenManager = false) =>
+  private ContextMenu BuildHistoryListEmptyContextMenu() =>
       ClipboardContextMenuBuilder.Create(menu =>
-          ClipboardContextMenuBuilder.AddQuickClipboardActionsOnly(menu, CreateQuickActionsMenuOptions(includeOpenManager)));
-
-  private ClipboardQuickActionsMenuOptions CreateQuickActionsMenuOptions(bool includeOpenManager = false) =>
-      new()
-      {
-        ClearSystemClipboard = () => _quickActions.ClearSystemClipboard(this),
-        CopyLatest = () => _quickActions.CopyLatestToClipboard(this),
-        PasteLatest = () => _quickActions.PasteLatestToApp(this),
-        ClearUnpinned = () => _quickActions.ClearUnpinnedHistory(this),
-        ClearAppHistory = () => _quickActions.ClearAppHistory(this),
-        ClearAll = () => _quickActions.ClearAllHistory(this),
-        ToggleCapture = () => _quickActions.ToggleCapturePaused(this),
-        IsCapturePaused = _quickActions.IsCapturePaused,
-        OpenManager = includeOpenManager ? () => Show() : null,
-        Refresh = RefreshList
-      };
+          menu.Items.Add(ClipboardContextMenuBuilder.Item("Refresh list", RefreshList, icon: "↻")));
 
   private ClipboardEntryMenuOptions CreateEntryMenuOptions(ClipboardEntry entry, bool includeFullscreen = false) => new()
   {
@@ -174,6 +158,9 @@ public partial class MainWindow : Window
       },
       Fullscreen = includeFullscreen && entry.ContentType == ClipboardContentType.Image
           ? () => PreviewImageZoom.OpenFullscreen()
+          : null,
+      ExportImageAs = entry.ContentType == ClipboardContentType.Image
+          ? () => ExportSelectedImage(entry)
           : null,
       OpenImageFile = entry.ContentType == ClipboardContentType.Image
           ? () => OpenImageFile(entry)
@@ -406,11 +393,13 @@ public partial class MainWindow : Window
 
   private void ShowHistory()
   {
-    PageTitle.Text = "Clipboard history";
+    PageTitle.Text = "Clipboard";
     HistoryPanel.Visibility = Visibility.Visible;
     SettingsHost.Visibility = Visibility.Collapsed;
     ImageLibraryHost.Visibility = Visibility.Collapsed;
     NavHistory.IsChecked = true;
+    UpdateCaptureButtonLabel();
+    UpdateFooter();
   }
 
   private void ShowImageLibrary()
@@ -461,14 +450,31 @@ public partial class MainWindow : Window
 
   private void HistoryList_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdatePreview();
 
+  private bool IsRichFormattingActive =>
+      IsVisible
+      && WindowState != WindowState.Minimized
+      && HistoryPanel.Visibility == Visibility.Visible
+      && (_throttle?.IsFormattingAllowed ?? true);
+
+  private void ExportSelectedImage(ClipboardEntry entry)
+  {
+    if (string.IsNullOrEmpty(entry.PayloadPath)) return;
+    var bytes = _repository.ReadPayload(entry.PayloadPath, _settings.EncryptPayloadFiles);
+    if (bytes == null) return;
+    if (ImageExportService.PromptAndExport(this, bytes, "clipboard_image"))
+      StatusText.Text = "● Image exported";
+  }
+
   private void UpdatePreview()
   {
     PreviewImageZoom.Visibility = Visibility.Collapsed;
     PreviewContentScroll.Visibility = Visibility.Visible;
     PreviewText.Visibility = Visibility.Collapsed;
+    FormattedPreview.Visibility = Visibility.Collapsed;
     PreviewFiles.Visibility = Visibility.Collapsed;
     PreviewImageZoom.SetSource(null);
     PreviewText.Text = string.Empty;
+    FormattedPreview.Clear();
 
     var entry = SelectedEntry;
     if (entry == null) { PreviewTitle.Text = "Select an item to preview"; return; }
@@ -512,8 +518,16 @@ public partial class MainWindow : Window
         break;
       default:
         var display = _privacy.GetDisplayText(entry) ?? _privacy.GetDisplayPreview(entry);
-        PreviewText.Text = display;
-        PreviewText.Visibility = Visibility.Visible;
+        if (IsRichFormattingActive)
+        {
+          FormattedPreview.Visibility = Visibility.Visible;
+          FormattedPreview.ShowEntry(entry, display, _settings, true, this);
+        }
+        else
+        {
+          PreviewText.Text = display;
+          PreviewText.Visibility = Visibility.Visible;
+        }
         break;
     }
   }
@@ -583,14 +597,38 @@ public partial class MainWindow : Window
     UpdatePreview();
   }
 
+  private void ClearClipboard_Click(object sender, RoutedEventArgs e) =>
+      _quickActions.ClearSystemClipboard(this);
+
+  private void CopyLatest_Click(object sender, RoutedEventArgs e) =>
+      _quickActions.CopyLatestToClipboard(this);
+
+  private void PasteLatest_Click(object sender, RoutedEventArgs e) =>
+      _quickActions.PasteLatestToApp(this);
+
+  private void ToggleCapture_Click(object sender, RoutedEventArgs e)
+  {
+    _quickActions.ToggleCapturePaused(this);
+    UpdateCaptureButtonLabel();
+  }
+
   private void ClearUnpinned_Click(object sender, RoutedEventArgs e) =>
       _quickActions.ClearUnpinnedHistory(this);
 
   private void ClearAppHistory_Click(object sender, RoutedEventArgs e) =>
       _quickActions.ClearAppHistory(this);
 
+  private void ClearAll_Click(object sender, RoutedEventArgs e) =>
+      _quickActions.ClearAllHistory(this);
+
   private void EmptyDatabase_Click(object sender, RoutedEventArgs e) =>
       _quickActions.EmptyDatabase(this);
+
+  private void UpdateCaptureButtonLabel()
+  {
+    if (PauseCaptureBtn == null) return;
+    PauseCaptureBtn.Content = _quickActions.IsCapturePaused ? "Resume capture" : "Pause capture";
+  }
 
   private void ExportDatabase_Click(object sender, RoutedEventArgs e)
   {
@@ -628,8 +666,14 @@ public partial class MainWindow : Window
     base.OnActivated(e);
   }
 
-  private void UpdateFooter() =>
-      FooterText.Text = $"Sort: {_settings.DefaultSort} · Auto-save: {(_settings.AutoSaveToDatabase ? "on" : "off")} · Backup: {(_settings.AutoBackupEnabled ? $"every {_settings.AutoBackupIntervalMinutes}m" : "off")}";
+  private void UpdateFooter()
+  {
+    var winClip = _settings.WindowsClipboardHistoryDisabledByApp
+        ? " · Win+V history: required off"
+        : "";
+    FooterText.Text =
+        $"Sort: {_settings.DefaultSort} · Auto-save: {(_settings.AutoSaveToDatabase ? "on" : "off")} · Backup: {(_settings.AutoBackupEnabled ? $"every {_settings.AutoBackupIntervalMinutes}m" : "off")}{winClip}";
+  }
 
   private bool TryResetVisibleImagePreviewZoom()
   {

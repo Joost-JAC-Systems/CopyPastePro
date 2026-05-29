@@ -7,8 +7,6 @@ namespace CopyPastePro.Services;
 /// Two-way folder sync: show existing images from a folder and save new clipboard images into it.</summary>
 public sealed class SyncedFolderService
 {
-  private static readonly string[] ImageExtensions =
-      [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tif", ".tiff", ".heic"];
 
   private readonly AppSettings _settings;
   private readonly ImageLibraryService _library;
@@ -153,7 +151,7 @@ public sealed class SyncedFolderService
   private static bool IsImageFile(string path)
   {
     var ext = Path.GetExtension(path);
-    return ImageExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase);
+    return FileExtensionCatalog.IsImageExtension(ext);
   }
 
   public sealed record SyncedFolderFile(string FullPath, long SizeBytes, DateTime ModifiedUtc);

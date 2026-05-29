@@ -69,6 +69,9 @@ public static class ClipboardContextMenuBuilder
     if (opt.IsImage && a.Fullscreen != null)
       menu.Items.Add(Item("Fullscreen preview", a.Fullscreen, icon: IconFullscreen));
 
+    if (opt.IsImage && a.ExportImageAs != null)
+      menu.Items.Add(Item("Export image as…", a.ExportImageAs, icon: IconSave));
+
     if (opt.IsImage && a.OpenImageFile != null && opt.HasImageFile)
       menu.Items.Add(Item("Show image in Explorer", a.OpenImageFile, icon: IconFile));
 
@@ -111,7 +114,11 @@ public static class ClipboardContextMenuBuilder
     menu.Items.Add(Item("Paste to app", a.PasteToApp, "Enter", IconPaste, opt.CanPaste));
     menu.Items.Add(Item("Copy to clipboard", a.Copy, "Ctrl+C", IconCopy));
     if (opt.HasHistoryEntry)
+    {
       menu.Items.Add(Item("Save as…", a.SaveAs, icon: IconSave));
+      if (a.ExportImageAs != null)
+        menu.Items.Add(Item("Export image as…", a.ExportImageAs, icon: IconSave));
+    }
     if (opt.OpenFilePath != null)
       menu.Items.Add(Item("Show in File Explorer", a.OpenFile, icon: IconFile));
 
@@ -165,7 +172,7 @@ public static class ClipboardContextMenuBuilder
   {
     menu.Items.Add(Separator());
     menu.Items.Add(Section("Clipboard"));
-    menu.Items.Add(Item("Clear Windows clipboard + Win+V history", opt.ClearSystemClipboard, icon: IconClear));
+    menu.Items.Add(Item("Clear clipboard", opt.ClearSystemClipboard, icon: IconClear));
     menu.Items.Add(Item("Copy latest to clipboard", opt.CopyLatest, icon: IconCopy));
     if (opt.PasteLatest != null)
       menu.Items.Add(Item("Paste latest to app", opt.PasteLatest, icon: IconPaste));
@@ -193,7 +200,7 @@ public static class ClipboardContextMenuBuilder
   public static void AddQuickClipboardActionsOnly(ContextMenu menu, ClipboardQuickActionsMenuOptions opt)
   {
     menu.Items.Add(Section("Clipboard"));
-    menu.Items.Add(Item("Clear Windows clipboard + Win+V history", opt.ClearSystemClipboard, icon: IconClear));
+    menu.Items.Add(Item("Clear clipboard", opt.ClearSystemClipboard, icon: IconClear));
     menu.Items.Add(Item("Copy latest to clipboard", opt.CopyLatest, icon: IconCopy));
     if (opt.PasteLatest != null)
       menu.Items.Add(Item("Paste latest to app", opt.PasteLatest, icon: IconPaste));
@@ -356,6 +363,7 @@ public sealed class ClipboardEntryMenuActions
   public Action? PasteToApp { get; init; }
   public Action? Copy { get; init; }
   public Action? Fullscreen { get; init; }
+  public Action? ExportImageAs { get; init; }
   public Action? ToggleFavorite { get; init; }
   public Action? TogglePin { get; init; }
   public Action? RemoveFromClipboard { get; init; }
@@ -385,6 +393,7 @@ public sealed class ImageLibraryMenuActions
   public Action? PasteToApp { get; init; }
   public Action? Copy { get; init; }
   public Action? SaveAs { get; init; }
+  public Action? ExportImageAs { get; init; }
   public Action? OpenFile { get; init; }
   public Action? Fullscreen { get; init; }
   public Action? ToggleFavorite { get; init; }
