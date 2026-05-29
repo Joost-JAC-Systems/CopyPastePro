@@ -1,0 +1,39 @@
+<UserControl x:Class="CopyPastePro.Controls.ZoomableImagePreview"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="Transparent"
+             ClipToBounds="True"
+             Focusable="True"
+             PreviewKeyDown="UserControl_PreviewKeyDown">
+    <Grid>
+        <ScrollViewer x:Name="Scroller"
+                      HorizontalScrollBarVisibility="Auto"
+                      VerticalScrollBarVisibility="Auto"
+                      Background="Transparent"
+                      PreviewMouseWheel="Scroller_PreviewMouseWheel"
+                      MouseEnter="Scroller_MouseEnter"
+                      PreviewMouseLeftButtonDown="Scroller_PreviewMouseLeftButtonDown"
+                      PreviewMouseMove="Scroller_PreviewMouseMove"
+                      PreviewMouseLeftButtonUp="Scroller_PreviewMouseLeftButtonUp"
+                      LostMouseCapture="Scroller_LostMouseCapture">
+            <Grid x:Name="ImageHost" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Grid.LayoutTransform>
+                    <ScaleTransform x:Name="ZoomTransform" ScaleX="1" ScaleY="1"/>
+                </Grid.LayoutTransform>
+                <Image x:Name="PreviewImage" Stretch="None"/>
+            </Grid>
+        </ScrollViewer>
+
+        <Button x:Name="FullscreenBtn"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                ToolTip="Open fullscreen preview"
+                Visibility="Collapsed"
+                Click="FullscreenBtn_Click"
+                Style="{StaticResource PreviewOverlayButton}"
+                Width="40" Height="40" MinHeight="40" Padding="0" Margin="10">
+            <TextBlock Text="⛶" FontSize="17" Foreground="White" FontWeight="SemiBold"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Button>
+    </Grid>
+</UserControl>

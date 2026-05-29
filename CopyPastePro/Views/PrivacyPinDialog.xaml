@@ -1,0 +1,24 @@
+<Window x:Class="CopyPastePro.Views.PrivacyPinDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Privacy lock"
+        Icon="pack://application:,,,/Assets/AppIcon.ico"
+        Width="340" Height="160"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="{DynamicResource BgDarkBrush}">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <TextBlock Text="Enter your privacy PIN to open the manager" TextWrapping="Wrap" Margin="0,0,0,12"
+                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+        <PasswordBox x:Name="PinBox" Grid.Row="1" Margin="0,0,0,16"/>
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Cancel" Style="{StaticResource GhostButton}" IsCancel="True" Margin="0,0,8,0" Padding="12,6"/>
+            <Button Content="Unlock" Style="{StaticResource PrimaryButton}" IsDefault="True" Click="Unlock_Click" Padding="12,6"/>
+        </StackPanel>
+    </Grid>
+</Window>
